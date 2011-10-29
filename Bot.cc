@@ -23,6 +23,7 @@ const int minColony = 5;
 const int minColonyForSpartans = 30; // min colony size before trying spartans
 const int numSpartans = 10; // max ammount to attack hill
 const int minSpartans = 4; // min ammount to atack a hill 
+const int minColonyForGuardians = 5; // min colony size before scheduling guardians
 
 std::vector<std::vector<int> > path;
 int dir[BOARD_SIZE][BOARD_SIZE];
@@ -71,7 +72,7 @@ void Bot::makeMoves()
 
 	memset(moved, 0, sizeof(moved));
 
-	if(state.myAnts.size() > 10*state.myHills.size()) {
+	if(state.myAnts.size() > minColonyForGuardians*state.myHills.size()) {
 		TRACE(state.bug << "Scheduling Guardians" << endl);
 		schedGuardians(); checkTimer();
 	}
