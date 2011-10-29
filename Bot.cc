@@ -71,15 +71,16 @@ void Bot::makeMoves()
 
 	memset(moved, 0, sizeof(moved));
 
+	if(state.myAnts.size() > 10*state.myHills.size()) {
+		TRACE(state.bug << "Scheduling Guardians" << endl);
+		schedGuardians(); checkTimer();
+	}
+
 	TRACE(state.bug << "Scheduling Defenders" << endl);
 	schedDefenders(); checkTimer();
 
 	TRACE(state.bug << "Scheduling FoodFetchers" << endl);
 	schedFoodFetchers(); checkTimer();
-
-	if(state.myAnts.size() > 10*state.myHills.size()) {
-		schedGuardians(); checkTimer();
-	}
 
 	if(state.myAnts.size() > minColonyForSpartans) {
 		TRACE(state.bug << "Scheduling Spartans" << endl);
