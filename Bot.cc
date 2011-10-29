@@ -72,10 +72,8 @@ void Bot::makeMoves()
 
 	memset(moved, 0, sizeof(moved));
 
-	if(state.myAnts.size() > minColonyForGuardians*state.myHills.size()) {
-		TRACE(state.bug << "Scheduling Guardians" << endl);
-		schedGuardians(); checkTimer();
-	}
+	TRACE(state.bug << "Scheduling Guardians" << endl);
+	schedGuardians(); checkTimer();
 
 	TRACE(state.bug << "Scheduling Defenders" << endl);
 	schedDefenders(); checkTimer();
@@ -586,9 +584,13 @@ void Bot::schedFoodFetchers()
 
 void Bot::schedGuardians()
 {
+	int cnt = 1;
 	for(locvec::iterator it = state.myHills.begin(), end = state.myHills.end();
 	    it != end;
 		++it) {
+
+		if(state.myAnts.size() < minColonyForGuardians*cnt) break;
+		cnt++;
 
 		Location g[4];
 		g[0] = state.getLocation(state.getLocation(*it, 0), 1);
