@@ -21,7 +21,9 @@ struct Bot
     void endTurn();     //indicates to the engine that it has made its moves
 
 	int bfs(Location start, Location target);
+	Location explorerBfs(Location ant);
 	Location foodBfs(Location food);
+	Location patrollerBfs(Location ant);
 	std::vector<Location> spartanBfs(Location target);
 
 	void move(Location location, int dir);
@@ -44,6 +46,7 @@ struct Bot
 	void schedDefenders();
 	void schedExplorers();
 	void schedFoodFetchers();
+	void schedGuardians();
 	void schedPatrollers();
 	void schedSpartans();
 

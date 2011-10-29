@@ -77,6 +77,10 @@ void Bot::makeMoves()
 	TRACE(state.bug << "Scheduling FoodFetchers" << endl);
 	schedFoodFetchers(); checkTimer();
 
+	if(state.myAnts.size() > 10*state.myHills.size()) {
+		schedGuardians(); checkTimer();
+	}
+
 	if(state.myAnts.size() > minColonyForSpartans) {
 		TRACE(state.bug << "Scheduling Spartans" << endl);
 		schedSpartans(); checkTimer();
@@ -175,6 +179,40 @@ int Bot::bfs(Location start, Location target)
 	return 0;
 }
 
+Location Bot::explorerBfs(Location ant)
+{
+	std::queue<Location> q;
+
+	memset(mark, 0, sizeof(int)*state.rows*state.cols);
+	memset(pred, -1, sizeof(int)*state.rows*state.cols);
+
+	q.push(ant);
+	mark[m(ant.row, ant.col)]++;
+	pred[m(ant.row, ant.col)] = -1;
+
+
+	while(!q.empty()) {
+		Location cur = q.front();
+		q.pop();
+
+		for(int d = 0; d < TDIRECTIONS; ++d) {
+			Location n = state.getLocation(cur, d);
+
+			if(!mark[m(n.row, n.col)] && isClear(n)) {
+				pred[m(n.row, n.col)] = d;
+				mark[m(n.row, n.col)] = 1;
+
+				q.push(n);
+			} else if(!isSeen(n)) {
+				pred[m(n.row, n.col)] = d;
+				return n;
+			}
+		}
+	}
+
+	return Location(-1, -1);
+}
+
 Location Bot::foodBfs(Location food)
 {
 	std::queue<Location> q;
@@ -238,6 +276,41 @@ Location Bot::foodBfs(Location food)
 
 	return Location(-1, -1);
 }
+
+
+Location Bot::patrollerBfs(Location ant)
+{
+	std::queue<Location> q;
+
+	memset(mark, 0, sizeof(int)*state.rows*state.cols);
+	memset(pred, -1, sizeof(int)*state.rows*state.cols);
+
+	q.push(ant);
+	mark[m(ant.row, ant.col)]++;
+	pred[m(ant.row, ant.col)] = -1;
+
+
+	while(!q.empty()) {
+		Location cur = q.front();
+		q.pop();
+
+		for(int d = 0; d < TDIRECTIONS; ++d) {
+			Location n = state.getLocation(cur, d);
+
+			if(!mark[m(n.row, n.col)] && isClear(n)) {
+				pred[m(n.row, n.col)] = d;
+				mark[m(n.row, n.col)] = mark[m(cur.row, cur.col)]+1;
+				q.push(n);
+			} else if(!isVisible(n)) {
+				pred[m(n.row, n.col)] = d;
+				return n;
+			}
+		}
+	}
+
+	return Location(-1, -1);
+}
+
 
 std::vector<Location> Bot::spartanBfs(Location food)
 {
@@ -443,42 +516,55 @@ void Bot::schedExplorers()
 			++it) {
 
 		if(isFreeAnt(*it)) {
-			double minDist = 1e10;
-			Location c(-1, -1);
 
-
-			for(int i = 0; i < state.rows; ++i) {
-				for(int j = 0; j < state.cols; ++j) {
-					Location cell(i, j);
-					if(!isSeen(cell) && !isWater(cell)) {
-						double dist = state.distance(*it, cell);
-						if(dist < minDist) {
-							minDist = dist;
-							c = cell;
-						}
-					}
-				}
-			}
+			Location c = explorerBfs(*it);
 
 			if(c != Location(-1, -1)) {
-				// faço do bloco oculto até a formiga pq fica mais fácil de pegar a direção
+				// se achou um tile inexplorado
+
+				TRACE(state.bug << "Unexplored tile at " << c << endl);
+
 				if(bfs(c, *it)) {
-					// Se há caminho
+				// Se há caminho
+
+					TRACE(state.bug << "Found a route, sending explorer" << endl);
 
 					int dir = invdir(pred[m(it->row, it->col)]);
-					TRACE(state.bug << "Explorer dir " << dir << " " << pred[m(it->row, it->col)] << endl); 
+
+					/*int pd = -1;
+					  while(c != *it) {
+					  pd = invdir(pred[m(c.row, c.col)]);
+					  c = state.getLocation(c, pd);
+					  state.bug << c << " " << pd << endl;
+					  }
+
+					  state.bug << "Saiu do while" << endl;
+
+					  int dir = invdir(pd);
+					 */
+				#ifdef DEBUG
 					Location n = state.getLocation(*it, dir);
-					if(isClear(n)) {
-						move(*it, dir);
-					}
+					assert(isClear(n));
+				#endif // DEBUG
+					move(*it, dir);
 				}
-			} else {
-				explored = true;
 			}
 		}
 
 		checkTimer();
 	}
+
+	bool allSeen = true;
+
+	for(int i = 0; i < state.rows && allSeen; ++i) {
+		for(int j = 0; j < state.cols && allSeen; ++j) {
+			if(!isSeen(Location(i, j))) {
+				allSeen = false;
+			}
+		}
+	}
+
+	if(allSeen) explored = true;
 }
 
 
@@ -496,6 +582,36 @@ void Bot::schedFoodFetchers()
 }
 
 
+void Bot::schedGuardians()
+{
+	for(locvec::iterator it = state.myHills.begin(), end = state.myHills.end();
+	    it != end;
+		++it) {
+
+		Location g[4];
+		g[0] = state.getLocation(state.getLocation(*it, 0), 1);
+		g[1] = state.getLocation(state.getLocation(*it, 0), 3);
+		g[2] = state.getLocation(state.getLocation(*it, 2), 1);
+		g[3] = state.getLocation(state.getLocation(*it, 2), 3);
+
+		for(int i = 0; i < 4; ++i) {
+			if(isClear(g[i])) {
+			// Se não há formigas na posição de guarda
+
+				Location antLoc = foodBfs(g[i]);
+
+				if(antLoc != Location(-1, -1)) {
+					move(antLoc, foodDirection);
+				}
+			} else {
+				// if already on guard, keep it
+				moved[g[i].row][g[i].col] = 1;
+			}
+		}
+	}
+}
+
+
 void Bot::schedPatrollers()
 {
 	for(locvec::iterator it = state.myAnts.begin(), end = state.myAnts.end();
@@ -503,30 +619,31 @@ void Bot::schedPatrollers()
 			++it) {
 
 		if(isFreeAnt(*it)) {
-			double minDist = 1e10;
-			Location c(-1, -1);
 
-			for(int i = 0; i < state.rows; ++i) {
-				for(int j = 0; j < state.cols; ++j) {
-					Location cell(i, j);
-					if(!isVisible(cell)) {
-						double dist = state.distance(*it, cell);
-						if(dist < minDist) {
-							minDist = dist;
-							c = cell;
-						}
-					}
-				}
-			}
+			Location c = explorerBfs(*it);
 
 			if(c != Location(-1, -1)) {
-				bfs(c, *it); // faço do bloco oculto até a formiga pq fica mais fácil de pegar a
-				             // direção
+				// se achou um tile inexplorado
+				if(bfs(c, *it)) {
+					// Se há caminho
 
-				int dir = invdir(pred[m(it->row, it->col)]);
-				state.bug << "Patroller dir " << dir << " " << pred[m(it->row, it->col)] << endl; 
-				Location n = state.getLocation(*it, dir);
-				if(isClear(n)) {
+					int dir = invdir(pred[m(it->row, it->col)]);
+
+					/*int pd = -1;
+					  while(c != *it) {
+					  pd = invdir(pred[m(c.row, c.col)]);
+					  c = state.getLocation(c, pd);
+					  state.bug << c << " " << pd << endl;
+					  }
+
+					  state.bug << "Saiu do while" << endl;
+
+					  int dir = invdir(pd);
+					 */
+				#ifdef DEBUG
+					Location n = state.getLocation(*it, dir);
+					assert(isClear(n));
+				#endif // DEBUG
 					move(*it, dir);
 				}
 			}
