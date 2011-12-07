@@ -72,11 +72,14 @@ void Bot::makeMoves()
 
 	memset(moved, 0, sizeof(moved));
 
-	TRACE(state.bug << "Scheduling Guardians" << endl);
-	schedGuardians(); checkTimer();
+	/*TRACE(state.bug << "Scheduling Guardians" << endl);
+	schedGuardians(); checkTimer();*/
 
 	TRACE(state.bug << "Scheduling Defenders" << endl);
 	schedDefenders(); checkTimer();
+
+	TRACE(state.bug << "Scheduling Fleers" << endl);
+	schedFleers(); checkTimer();
 
 	TRACE(state.bug << "Scheduling FoodFetchers" << endl);
 	schedFoodFetchers(); checkTimer();
@@ -212,6 +215,49 @@ Location Bot::explorerBfs(Location ant)
 
 	return Location(-1, -1);
 }
+
+
+int Bot::nearbyBfs(Location start, int what, int dist)
+{
+	int cnt = 0;
+	
+	std::queue<std::pair<Location, int> > q;
+
+	memset(mark, 0, sizeof(int)*state.rows*state.cols);
+	memset(pred, -1, sizeof(int)*state.rows*state.cols);
+
+	q.push(std::make_pair(start, 0));
+	mark[m(start.row, start.col)]++;
+	pred[m(start.row, start.col)] = -1;
+
+
+	while(!q.empty()) {
+		Location cur = q.front().first;
+		int cdist = q.front().second;
+		q.pop();
+
+		if(cdist > dist) continue;
+
+		for(int d = 0; d < TDIRECTIONS; ++d) {
+			Location n = state.getLocation(cur, d);
+
+			if(state.grid[cur.row][cur.col].ant == 0 && what == 0) {
+				cnt++;
+			} else if(state.grid[cur.row][cur.col].ant > 0 && what) {
+				cnt++;
+			}
+
+			if(!mark[m(n.row, n.col)] && isVisible(n)) {
+				pred[m(n.row, n.col)] = d;
+				mark[m(n.row, n.col)] = mark[m(cur.row, cur.col)]+1;
+				q.push(make_pair(n, cdist+1));
+			}
+		}
+	}
+
+	return cnt;
+}
+
 
 Location Bot::foodBfs(Location food)
 {
@@ -397,6 +443,15 @@ void Bot::move(Location location, int dir)
 	moved[n.row][n.col] = 1;
 }
 
+void Bot::stay(Location location)
+{
+#ifdef DEBUG
+	assert(isFreeAnt(location)); // Há formiga sem ordens na loc. atual
+#endif // DEBUG
+
+	moved[location.row][location.col] = 1;
+}
+
 
 inline bool Bot::isFood(Location loc)
 {
@@ -565,6 +620,24 @@ void Bot::schedExplorers()
 	}
 
 	if(allSeen) explored = true;
+}
+
+
+void Bot::schedFleers()
+{
+	for(locvec::iterator it = state.myAnts.begin(), end = state.myAnts.end();
+	    it != end;
+		++it) {
+
+		int enemy = nearbyBfs(*it, 1, 5);
+		int friendly = nearbyBfs(*it, 0, 5);
+
+		if(friendly - enemy < 3) {
+			stay(*it);
+		}
+
+		checkTimer();
+	}
 }
 
 

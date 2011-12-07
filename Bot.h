@@ -23,10 +23,12 @@ struct Bot
 	int bfs(Location start, Location target);
 	Location explorerBfs(Location ant);
 	Location foodBfs(Location food);
+	int nearbyBfs(Location start, int what, int dist);
 	Location patrollerBfs(Location ant);
 	std::vector<Location> spartanBfs(Location target);
 
 	void move(Location location, int dir);
+	void stay(Location location);
 
 	bool isFood(Location loc);
 	bool isWater(Location loc);
@@ -45,6 +47,7 @@ struct Bot
 
 	void schedDefenders();
 	void schedExplorers();
+	void schedFleers();
 	void schedFoodFetchers();
 	void schedGuardians();
 	void schedPatrollers();
