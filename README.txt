@@ -1,3 +1,7 @@
+This repository contains an "Ants" Google AI Challenge entry based on the C++ starter package.
+
+Original README:
+
 The files in this package are part of the C++ starter package for Ants from the Google AI Challenge. The Google AI Challenge is an Artificial Intelligence programming contest. You can get more information by visiting www.ai-contest.com.
 
 The entire contents of this starter package are released under the Apache license as is all code related to the Google AI Challenge. See https://github.com/aichallenge/aichallenge/ for more details.
